@@ -1,0 +1,59 @@
+{{- if .Values.csp.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opencloud.fullname" . }}-csp
+  labels:
+    {{- include "opencloud.labels" . | nindent 4 }}
+data:
+  csp.yaml: |
+{{ .Values.csp.config | indent 4 }}
+{{- end }}
+---
+{{- if .Values.collaboration.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "opencloud.fullname" . }}-wopi
+  labels:
+    {{- include "opencloud.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.collaboration.port }}
+      targetPort: wopi
+      protocol: TCP
+      name: wopi
+  selector:
+    {{- include "opencloud.selectorLabels" . | nindent 4 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "opencloud.fullname" . }}-wopi
+  labels:
+    {{- include "opencloud.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.collaboration.wopiHost | quote }}
+      secretName: {{ .Values.collaboration.wopiTlsSecretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.collaboration.wopiHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "opencloud.fullname" . }}-wopi
+                port:
+                  name: wopi
+{{- end }}
