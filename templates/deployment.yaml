@@ -59,13 +59,16 @@ spec:
             - name: http
               containerPort: 9200
               protocol: TCP
+            {{- if .Values.collaboration.enabled }}
+            - name: wopi
+              containerPort: {{ .Values.collaboration.port }}
+              protocol: TCP
+            {{- end }}
           env:
             - name: OC_URL
               value: {{ .Values.opencloud.url | quote }}
             - name: OC_LOG_LEVEL
               value: {{ .Values.opencloud.logLevel | quote }}
-            - name: PROXY_CSP_CONFIG_FILE_LOCATION
-              value: /etc/opencloud/csp.yaml
             # TLS terminé par Traefik ; OpenCloud sert en HTTPS auto-signé
             # derrière le proxy -> voir extraEnv PROXY_TLS=false + annotation
             # serversTransport si tu préfères du HTTP interne pur.
@@ -86,17 +89,39 @@ spec:
             - name: PROXY_AUTOPROVISION_ACCOUNTS
               value: "true"
             {{- end }}
+            {{- if .Values.collaboration.enabled }}
+            # Service collaboration (connecteur WOPI) - VERIFIER les noms
+            # d'env contre la doc OpenCloud (heritage oCIS, le fork peut differer)
+            - name: OC_ADD_RUN_SERVICES
+              value: "collaboration"
+            - name: COLLABORATION_APP_NAME
+              value: {{ .Values.collaboration.appName | quote }}
+            - name: COLLABORATION_APP_ADDR
+              value: {{ .Values.collaboration.appAddr | quote }}
+            - name: COLLABORATION_APP_INSECURE
+              value: {{ .Values.collaboration.appInsecure | quote }}
+            - name: COLLABORATION_HTTP_ADDR
+              value: "0.0.0.0:{{ .Values.collaboration.port }}"
+            - name: COLLABORATION_WOPI_SRC
+              value: "https://{{ .Values.collaboration.wopiHost }}"
+            {{- end }}
+            {{- if .Values.csp.enabled }}
+            - name: PROXY_CSP_CONFIG_FILE_LOCATION
+              value: /etc/opencloud-csp/csp.yaml
+            {{- end }}
             {{- with .Values.opencloud.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           volumeMounts:
-            - name: csp
-              mountPath: /etc/opencloud/csp.yaml
-              subPath: csp.yaml
             - name: config
               mountPath: /etc/opencloud
             - name: data
               mountPath: /var/lib/opencloud
+            {{- if .Values.csp.enabled }}
+            - name: csp
+              mountPath: /etc/opencloud-csp
+              readOnly: true
+            {{- end }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
@@ -104,9 +129,11 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
+        {{- if .Values.csp.enabled }}
         - name: csp
           configMap:
-            name: opencloud-csp
+            name: {{ include "opencloud.fullname" . }}-csp
+        {{- end }}
         - name: config
           {{- if .Values.persistence.config.enabled }}
           persistentVolumeClaim:
