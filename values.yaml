@@ -62,7 +62,7 @@ collaboration:
   port: 9300
 # --- Content-Security-Policy personnalisée (requise avec IDP externe) ---
 csp:
-  enabled: false
+  enabled: true
   # Contenu complet de csp.yaml. Les triples quotes YAML produisent 'self'.
   config: |
     directives:
