@@ -3,7 +3,7 @@ name: opencloud
 description: OpenCloud (fork oCIS) - chart maison pour georgeop.us
 type: application
 version: 0.1.0
-appVersion: "2.0.0"   # vérifier la dernière release sur github.com/opencloud-eu/opencloud
+appVersion: "7.4.0"   # vérifier la dernière release sur github.com/opencloud-eu/opencloud
 keywords:
   - opencloud
   - files
