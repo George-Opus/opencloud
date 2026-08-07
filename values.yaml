@@ -2,7 +2,7 @@ replicaCount: 1   # OpenCloud en mode single-binary : garder 1 replica
 
 image:
   repository: opencloudeu/opencloud-rolling   # vérifier le registre exact (docker.io/opencloudeu ou ghcr.io/opencloud-eu)
-  tag: ""          # défaut: appVersion
+  tag: "7.4.0"          # défaut: appVersion
   pullPolicy: IfNotPresent
 
 nameOverride: ""
