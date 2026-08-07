@@ -10,7 +10,7 @@ fullnameOverride: ""
 
 opencloud:
   # URL publique - obligatoire
-  url: "https://cloud.georgeop.us"
+  url: "https://opencloud.georgeop.us"
   logLevel: "info"
 
   # Mot de passe admin initial (utilisateur "admin").
@@ -105,8 +105,8 @@ ingress:
   className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    # cert-manager.io/cluster-issuer: letsencrypt-prod
-  host: cloud.georgeop.us
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: opencloud.georgeop.us
   tls:
     enabled: true
     secretName: opencloud-tls
