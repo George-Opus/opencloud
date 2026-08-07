@@ -23,7 +23,7 @@ opencloud:
 
   # OIDC externe (Authelia). Laisser enabled=false pour utiliser l'IDP intégré au début.
   oidc:
-    enabled: false
+    enabled: true
     issuer: "https://auth.georgeop.us"
     clientId: "opencloud"
     # Le client OIDC web est public (PKCE) - le secret se gère côté Authelia
