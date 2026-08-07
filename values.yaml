@@ -79,6 +79,8 @@ csp:
         - '''self'''
       frame-ancestors:
         - '''self'''
+        - 'https://office.georgeop.us'
+        - 'https://wopi.georgeop.us'
       frame-src:
         - '''self'''
         - 'blob:'
