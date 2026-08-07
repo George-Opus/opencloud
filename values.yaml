@@ -31,13 +31,23 @@ opencloud:
 
   # Env additionnels (liste EnvVar brute) - utile car OpenCloud se configure
   # essentiellement par variables d'environnement
-  extraEnv: []
+  extraEnv: 
+    - name: OC_EXCLUDE_RUN_SERVICES
+      value: "idp"
+    - name: PROXY_OIDC_REWRITE_WELLKNOWN
+      value: "true"
+    - name: PROXY_OIDC_ACCESS_TOKEN_VERIFY_METHOD
+      value: "none"
+    - name: PROXY_USER_OIDC_CLAIM
+      value: "preferred_username"
+    - name: PROXY_USER_CS3_CLAIM
+      value: "username"
     # - name: PROXY_TLS
     #   value: "false"
 
 # --- Edition collaborative (connecteur WOPI vers Collabora) ---
 collaboration:
-  enabled: false
+  enabled: true
   # Nom affiché et type d'app
   appName: "Collabora"
   # URL publique de Collabora Online
@@ -50,7 +60,6 @@ collaboration:
   wopiTlsSecretName: "opencloud-wopi-tls"
   # Port d'écoute interne du service collaboration
   port: 9300
-
 # --- Content-Security-Policy personnalisée (requise avec IDP externe) ---
 csp:
   enabled: false
