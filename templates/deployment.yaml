@@ -64,6 +64,8 @@ spec:
               value: {{ .Values.opencloud.url | quote }}
             - name: OC_LOG_LEVEL
               value: {{ .Values.opencloud.logLevel | quote }}
+            - name: PROXY_CSP_CONFIG_FILE_LOCATION
+              value: /etc/opencloud/csp.yaml
             # TLS terminé par Traefik ; OpenCloud sert en HTTPS auto-signé
             # derrière le proxy -> voir extraEnv PROXY_TLS=false + annotation
             # serversTransport si tu préfères du HTTP interne pur.
@@ -88,6 +90,9 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           volumeMounts:
+            - name: csp
+              mountPath: /etc/opencloud/csp.yaml
+              subPath: csp.yaml
             - name: config
               mountPath: /etc/opencloud
             - name: data
@@ -99,6 +104,9 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
+        - name: csp
+          configMap:
+            name: opencloud-csp
         - name: config
           {{- if .Values.persistence.config.enabled }}
           persistentVolumeClaim:
