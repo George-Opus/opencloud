@@ -2,7 +2,7 @@ replicaCount: 1   # OpenCloud en mode single-binary : garder 1 replica
 
 image:
   repository: opencloudeu/opencloud-rolling   # vérifier le registre exact (docker.io/opencloudeu ou ghcr.io/opencloud-eu)
-  tag: "7.4.0"          # défaut: appVersion
+  tag: ""          # défaut: appVersion
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -10,7 +10,7 @@ fullnameOverride: ""
 
 opencloud:
   # URL publique - obligatoire
-  url: "https://opencloud.georgeop.us"
+  url: "https://cloud.georgeop.us"
   logLevel: "info"
 
   # Mot de passe admin initial (utilisateur "admin").
@@ -23,7 +23,7 @@ opencloud:
 
   # OIDC externe (Authelia). Laisser enabled=false pour utiliser l'IDP intégré au début.
   oidc:
-    enabled: true
+    enabled: false
     issuer: "https://auth.georgeop.us"
     clientId: "opencloud"
     # Le client OIDC web est public (PKCE) - le secret se gère côté Authelia
@@ -31,24 +31,70 @@ opencloud:
 
   # Env additionnels (liste EnvVar brute) - utile car OpenCloud se configure
   # essentiellement par variables d'environnement
-  extraEnv:
-        # Ne pas démarrer l'IDP intégré
-    - name: OC_EXCLUDE_RUN_SERVICES
-      value: "idp"
-    # Réécrire le /.well-known/openid-configuration vers Authelia
-    - name: PROXY_OIDC_REWRITE_WELLKNOWN
-      value: "true"
-    # Les access tokens d'Authelia sont opaques (pas des JWT) :
-    # désactiver la vérification JWT, OpenCloud validera via l'endpoint userinfo
-    - name: PROXY_OIDC_ACCESS_TOKEN_VERIFY_METHOD
-      value: "none"
-    # Claim OIDC utilisé comme identifiant utilisateur
-    - name: PROXY_USER_OIDC_CLAIM
-      value: "preferred_username"
-    - name: PROXY_USER_CS3_CLAIM
-      value: "username"
+  extraEnv: []
     # - name: PROXY_TLS
     #   value: "false"
+
+# --- Edition collaborative (connecteur WOPI vers Collabora) ---
+collaboration:
+  enabled: false
+  # Nom affiché et type d'app
+  appName: "Collabora"
+  # URL publique de Collabora Online
+  appAddr: "https://office.georgeop.us"
+  # true si Collabora présente un certificat non vérifiable en interne
+  appInsecure: false
+  # URL publique du endpoint WOPI de CE service - Collabora doit pouvoir la joindre.
+  # Exposée par l'ingress du chart sur l'hôte ci-dessous.
+  wopiHost: "wopi.georgeop.us"
+  wopiTlsSecretName: "opencloud-wopi-tls"
+  # Port d'écoute interne du service collaboration
+  port: 9300
+
+# --- Content-Security-Policy personnalisée (requise avec IDP externe) ---
+csp:
+  enabled: false
+  # Contenu complet de csp.yaml. Les triples quotes YAML produisent 'self'.
+  config: |
+    directives:
+      child-src:
+        - '''self'''
+      connect-src:
+        - '''self'''
+        - 'blob:'
+        - 'https://auth.georgeop.us'
+        - 'https://raw.githubusercontent.com/opencloud-eu/awesome/'
+      default-src:
+        - '''none'''
+      font-src:
+        - '''self'''
+      frame-ancestors:
+        - '''self'''
+      frame-src:
+        - '''self'''
+        - 'blob:'
+        - 'https://auth.georgeop.us'
+        - 'https://office.georgeop.us'
+      img-src:
+        - '''self'''
+        - 'data:'
+        - 'blob:'
+      manifest-src:
+        - '''self'''
+      media-src:
+        - '''self'''
+      object-src:
+        - '''self'''
+        - 'blob:'
+      script-src:
+        - '''self'''
+        - '''unsafe-inline'''
+      style-src:
+        - '''self'''
+        - '''unsafe-inline'''
+      worker-src:
+        - '''self'''
+        - 'blob:'
 
 service:
   type: ClusterIP
@@ -59,8 +105,8 @@ ingress:
   className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-  host: opencloud.georgeop.us
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: cloud.georgeop.us
   tls:
     enabled: true
     secretName: opencloud-tls
