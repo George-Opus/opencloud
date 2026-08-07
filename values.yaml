@@ -1,0 +1,107 @@
+replicaCount: 1   # OpenCloud en mode single-binary : garder 1 replica
+
+image:
+  repository: opencloudeu/opencloud-rolling   # vérifier le registre exact (docker.io/opencloudeu ou ghcr.io/opencloud-eu)
+  tag: ""          # défaut: appVersion
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+opencloud:
+  # URL publique - obligatoire
+  url: "https://cloud.georgeop.us"
+  logLevel: "info"
+
+  # Mot de passe admin initial (utilisateur "admin").
+  # Prioritaire: existingSecret avec la clé ADMIN_PASSWORD
+  adminPassword: ""
+  existingAdminSecret: ""
+
+  # `opencloud init` est lancé par un initContainer si la config n'existe pas
+  # (génère les secrets internes dans /etc/opencloud)
+
+  # OIDC externe (Authelia). Laisser enabled=false pour utiliser l'IDP intégré au début.
+  oidc:
+    enabled: false
+    issuer: "https://auth.georgeop.us"
+    clientId: "opencloud"
+    # Le client OIDC web est public (PKCE) - le secret se gère côté Authelia
+    # Voir doc OpenCloud "external IDP" pour les env WEB_OIDC_* / PROXY_OIDC_*
+
+  # Env additionnels (liste EnvVar brute) - utile car OpenCloud se configure
+  # essentiellement par variables d'environnement
+  extraEnv: []
+    # - name: PROXY_TLS
+    #   value: "false"
+
+service:
+  type: ClusterIP
+  port: 9200
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: cloud.georgeop.us
+  tls:
+    enabled: true
+    secretName: opencloud-tls
+
+persistence:
+  # Données utilisateurs (blobs, métadonnées decomposedfs)
+  data:
+    enabled: true
+    storageClass: "local-path"
+    accessModes: [ReadWriteOnce]
+    size: 50Gi
+    # existingClaim: ""
+  # Config générée par `opencloud init` (secrets internes) - PETIT mais CRITIQUE à sauvegarder
+  config:
+    enabled: true
+    storageClass: "local-path"
+    accessModes: [ReadWriteOnce]
+    size: 100Mi
+    # existingClaim: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+    scheme: HTTPS
+  initialDelaySeconds: 20
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+    scheme: HTTPS
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}

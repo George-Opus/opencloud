@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "opencloud.fullname" . }}
+  labels:
+    {{- include "opencloud.labels" . | nindent 4 }}
+  annotations:
+    # Traefik: backend en HTTPS (cert auto-signé interne d'OpenCloud)
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+    traefik.ingress.kubernetes.io/service.serverstransport: {{ .Release.Namespace }}-{{ include "opencloud.fullname" . }}-insecure@kubernetescrd
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "opencloud.selectorLabels" . | nindent 4 }}
+---
+{{- range $name, $cfg := .Values.persistence }}
+{{- if and $cfg.enabled (not $cfg.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "opencloud.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "opencloud.labels" $ | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml $cfg.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ $cfg.size }}
+  {{- with $cfg.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}
+{{- if and .Values.opencloud.adminPassword (not .Values.opencloud.existingAdminSecret) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "opencloud.fullname" . }}-admin
+  labels:
+    {{- include "opencloud.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  ADMIN_PASSWORD: {{ .Values.opencloud.adminPassword | quote }}
+{{- end }}

@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "opencloud.fullname" . }}
+  labels:
+    {{- include "opencloud.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate   # volumes RWO + état local
+  selector:
+    matchLabels:
+      {{- include "opencloud.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "opencloud.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        # Génère la config et les secrets internes au premier démarrage seulement
+        - name: init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - opencloud init --insecure true || true
+          env:
+            {{- if or .Values.opencloud.adminPassword .Values.opencloud.existingAdminSecret }}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "opencloud.adminSecretName" . }}
+                  key: ADMIN_PASSWORD
+            - name: IDM_ADMIN_PASSWORD
+              value: "$(ADMIN_PASSWORD)"
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/opencloud
+      containers:
+        - name: opencloud
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command: ["opencloud", "server"]
+          ports:
+            - name: http
+              containerPort: 9200
+              protocol: TCP
+          env:
+            - name: OC_URL
+              value: {{ .Values.opencloud.url | quote }}
+            - name: OC_LOG_LEVEL
+              value: {{ .Values.opencloud.logLevel | quote }}
+            # TLS terminé par Traefik ; OpenCloud sert en HTTPS auto-signé
+            # derrière le proxy -> voir extraEnv PROXY_TLS=false + annotation
+            # serversTransport si tu préfères du HTTP interne pur.
+            - name: OC_INSECURE
+              value: "true"
+            {{- if or .Values.opencloud.adminPassword .Values.opencloud.existingAdminSecret }}
+            - name: IDM_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "opencloud.adminSecretName" . }}
+                  key: ADMIN_PASSWORD
+            {{- end }}
+            {{- if .Values.opencloud.oidc.enabled }}
+            - name: OC_OIDC_ISSUER
+              value: {{ .Values.opencloud.oidc.issuer | quote }}
+            - name: WEB_OIDC_CLIENT_ID
+              value: {{ .Values.opencloud.oidc.clientId | quote }}
+            - name: PROXY_AUTOPROVISION_ACCOUNTS
+              value: "true"
+            {{- end }}
+            {{- with .Values.opencloud.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/opencloud
+            - name: data
+              mountPath: /var/lib/opencloud
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          {{- if .Values.persistence.config.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.config.existingClaim | default (printf "%s-config" (include "opencloud.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: data
+          {{- if .Values.persistence.data.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.data.existingClaim | default (printf "%s-data" (include "opencloud.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
