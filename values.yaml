@@ -31,7 +31,22 @@ opencloud:
 
   # Env additionnels (liste EnvVar brute) - utile car OpenCloud se configure
   # essentiellement par variables d'environnement
-  extraEnv: []
+  extraEnv:
+        # Ne pas démarrer l'IDP intégré
+    - name: OC_EXCLUDE_RUN_SERVICES
+      value: "idp"
+    # Réécrire le /.well-known/openid-configuration vers Authelia
+    - name: PROXY_OIDC_REWRITE_WELLKNOWN
+      value: "true"
+    # Les access tokens d'Authelia sont opaques (pas des JWT) :
+    # désactiver la vérification JWT, OpenCloud validera via l'endpoint userinfo
+    - name: PROXY_OIDC_ACCESS_TOKEN_VERIFY_METHOD
+      value: "none"
+    # Claim OIDC utilisé comme identifiant utilisateur
+    - name: PROXY_USER_OIDC_CLAIM
+      value: "preferred_username"
+    - name: PROXY_USER_CS3_CLAIM
+      value: "username"
     # - name: PROXY_TLS
     #   value: "false"
 
